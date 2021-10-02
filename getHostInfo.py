@@ -1,6 +1,6 @@
 # -*- coding: UTF-8 -*-
-import os
-import sys 
+import os,sys
+import csv
 
 cmdList={
     #主机类
@@ -55,13 +55,20 @@ cmdList={
 }
 choseList={}
     
-def main():#可根据需要把打印数据存xml文档
+def main():
     #可添加选择性执行，对应数据丢入choseList再执行
     #以下默认全部执行
+    id=0
     for key,value in cmdList.items():
+        id=id+1
         print('\n\n-------------%s-------------'%key)
         message = os.popen(value).read()
         print(message)
+        csv_writer.writerow([ id, key, message])
     
 if __name__ == "__main__":
-    main()
+    filename='./Result/hostInfo.csv'
+    with open(filename, 'w', encoding='utf-8', newline='') as q:
+        csv_writer = csv.writer(q)
+        csv_writer.writerow([ 'ID','类型', '信息'])
+        main()
