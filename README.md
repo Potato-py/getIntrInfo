@@ -1,3 +1,5 @@
+绕简单沙箱，需要在同目录下创建Result文件夹才可正常运行
+
 ### 0x01 getBowserInfo
 Intro：获取各类浏览器的书签、浏览记录、cookie、存储的账号密码
 ![bowser](https://user-images.githubusercontent.com/52556245/135703768-8802d0ac-bbed-4871-a06a-c95ef4e569f9.png)
